@@ -9,13 +9,13 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import java.io.InputStream;
 import java.util.Map;
 
-public class Main implements RequestHandler<Map<String, Object>, Map<String, String>> {
+public class Main implements RequestHandler<Map<String, Object>, Map<String, Object>> {
 
     private final S3Client client = S3Client.builder().build();
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Override
-    public Map<String, String> handleRequest(Map<String, Object> input, Context context) {
+    public Map<String, Object> handleRequest(Map<String, Object> input, Context context) {
 
         String pathParameters = input.get("rawPath").toString();
         String shortUrlCode = pathParameters.replace("/", "");
@@ -46,10 +46,24 @@ public class Main implements RequestHandler<Map<String, Object>, Map<String, Str
         }
 
         long currentTimeIsSeconds = System.currentTimeMillis() / 1000;
+        
+        Map<String, Object> response = new HashMap<>();
 
         if(currentTimeIsSeconds < urlData.getExpirationTime()) {
+            
+            response.put("statusCode", 302);
 
+            Map<String,String> headers = new HashMap<>();
+
+            headers.put("Location", urlData.getOriginalUrl());
+            response.put("headers", headers);
+
+            return response;
         }
-        return Map.of();
+
+        response.put("statusCode", 410);
+        response.put("body", "This URL has expired.");
+
+        return response;
     }
 }
